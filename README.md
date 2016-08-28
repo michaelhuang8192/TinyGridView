@@ -2,7 +2,7 @@
 A two-dimensional scrolling grid view supports a huge data set without slowing the browser
 
 # Demo
-[Link](http://tinyappsdev.com/data/projects/tiny-grid-view/gridview-demo1.html)
+http://tinyappsdev.com/web/projects/tiny-grid-view
 
 *See folder demo for more information*
 
