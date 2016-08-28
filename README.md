@@ -4,7 +4,6 @@ A two-dimensional scrolling grid view supports a huge data set without slowing t
 # Demo
 http://tinyappsdev.com/web/projects/tiny-grid-view
 
-*See folder demo for more information*
 
 # Requirement
 * ReactJS
