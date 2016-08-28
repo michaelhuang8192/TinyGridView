@@ -223,20 +223,27 @@ var GridView = React.createClass({
 	virtualItemsCount: 0,
 	colWidth: 0,
 
-	__resize() {
-		//console.log("__resize");
+	__measure() {
 		var body = $(this.refs['body']);
-		var bodyPosTop = this.props.outterScroll ? body.offset().top : body.position().top;
+		var bodyPosTop = this.props.outterScroll ? body.offset().top : 0;
 		var bodyWidth = body.width();
-		var containerHeight = this.scrollContainer.height();
+		var containerHeight = this.scrollContainer.height() + 30;
 		
+		var hidden_item = $(this.refs['hidden_item']);
+		var itemHeight = hidden_item.height() || DEFAULT_ITEM_SIZE;
+		var itemWidth = hidden_item.width() || DEFAULT_ITEM_SIZE;
+
 		if(bodyWidth == this.bodyWidth
 			&& containerHeight == this.containerHeight
-			&& bodyPosTop == this.bodyPosTop)
+			&& bodyPosTop == this.bodyPosTop
+			&& itemHeight == this.origItemSize.height
+			&& itemWidth == this.origItemSize.width)
 		{
 			return false;
 		}
-		
+
+		this.origItemSize.height = itemHeight;
+		this.origItemSize.width = itemWidth;
 		this.bodyWidth = bodyWidth;
 		this.containerHeight = containerHeight;
 		this.bodyPosTop = bodyPosTop;
@@ -244,6 +251,7 @@ var GridView = React.createClass({
 		this.colWidth = this.bodyWidth / this.numItemsPerRow;
 
 		if(this.props.stretchMode == 1) {
+			//not implement yet
 
 		} else {
 			this.curItemSize.width = this.origItemSize.width;
@@ -281,10 +289,18 @@ var GridView = React.createClass({
 	},
 
 	_onResize: function() {
-		if(this.__resize()) {
+		//console.log("_onResize");
+		if(this.props.paused) return;
+
+		if(this.__measure()) {
 			this.setState(
 				$.extend({}, this._getVirtualView(), {version: this.state.version + 1})
 			);
+		} else {
+			var virtualView = this._getVirtualView();
+			if(virtualView.startPos != this.state.startPos
+				|| virtualView.endPos != this.state.endPos)
+				this.setState(virtualView);
 		}
 	},
 
@@ -293,15 +309,17 @@ var GridView = React.createClass({
 	},
 
 	_onScroll: function() {
-		//console.log("_onScroll");
+		if(this.props.paused) return;
 		if(this.scrollDelay !== null) return;
 
 		var _this = this;
 		this.scrollDelay = setTimeout(function() {
 			_this.scrollDelay = null;
+			if(_this.props.paused) return;
 			
 			var virtualView = _this._getVirtualView();
 			if(virtualView == null) return;
+
 			if(virtualView.startPos != _this.state.startPos
 				|| virtualView.endPos != _this.state.endPos)
 				_this.setState(virtualView);
@@ -311,10 +329,19 @@ var GridView = React.createClass({
 	},
 
 	_change: function() {
+		var rowsCountChanged = this.state.itemsCount != this.props.adapter.getCount();
+
 		this.setState({
 			itemsCount: this.props.adapter.getCount(),
 			version: this.state.version + 1
 		});
+
+		if(rowsCountChanged) {
+			var _this = this;
+			setTimeout(function() {
+				_this.scrollContainer && _this._onResize();
+			}, 0);
+		}
 	},
 
 	_onClick: function(position) {
@@ -326,7 +353,7 @@ var GridView = React.createClass({
 	},
 
 	shouldComponentUpdate: function(nextProps) {
-		if(nextProps.shouldNotRender)
+		if(nextProps.paused)
 			return false;
 		return true;
 	},
@@ -343,9 +370,9 @@ var GridView = React.createClass({
 
 	render: function() {
 		var rows = [];
-		if(this.origItemSize.width <= 0 || this.origItemSize.height <= 0) {
-			rows.push(<div key={-1} className="tgv_item" ref="hidden_item" style={{visibility: 'hidden'}}></div>);
-		} else {
+		rows.push(<div key={-1} className="tgv_item" ref="hidden_item" style={{visibility: 'hidden', left: 0, top: 0}}></div>);
+		
+		if(this.virtualItemsCount > 0) {
 			var virtualItemsCount = this.virtualItemsCount;
 			var positions = new Array(virtualItemsCount);
 			var endpos = Math.min(this.state.itemsCount, this.state.endPos);
@@ -375,10 +402,15 @@ var GridView = React.createClass({
 		var height = this.curItemSize.height * Math.ceil(this.state.itemsCount / this.numItemsPerRow);
 		var style = $.extend({}, this.props.style || {}, {height: height + "px"});
 
-		var className = this.props.className != null ? "tgv_body " + this.props.className : "tgv_body";
+		var classNames = ["tinygridview"];
+		if(!this.props.outterScroll) classNames.push("tinygridview_innerscroll");
+		if(this.props.className) classNames.push(this.props.className);
+		
 		return (
-		<div className={"tinygridview" + (!this.props.outterScroll ? " tinygridview_innerscroll" : "")} ref="scrollContainer">
-			<div className={className} ref="body" style={style}>{rows}</div>
+		<div className={classNames.join(" ")}>
+			<div className="tgv_container" ref="scrollContainer">
+				<div className="tgv_body" ref="body" style={style}>{rows}</div>
+			</div>
 			{this.props.renderCustomView && this.props.renderCustomView(this)}
 		</div>
 		);
@@ -386,17 +418,12 @@ var GridView = React.createClass({
 	},
 
 	componentDidMount: function() {
-		$(window).on('resize', this._onResize);
-
 		this.scrollContainer = this.props.outterScroll ? $(window) : $(this.refs['scrollContainer']);
-		var container = this.scrollContainer;
-		container.on('scroll', this._onScroll);
-
-		var hidden_item = $(this.refs['hidden_item']);
-		this.origItemSize.height = hidden_item.height() || DEFAULT_ITEM_SIZE;
-		this.origItemSize.width = hidden_item.width() || DEFAULT_ITEM_SIZE;
 		
-		this.__resize();
+		$(window).on('resize', this._onResize);
+		this.scrollContainer.on('scroll', this._onScroll);
+
+		this.__measure();
 
 		var virtualView = this._getVirtualView();
 		this.state.startPos = virtualView.startPos;

@@ -68,7 +68,7 @@ var DemoListView = React.createClass({
   },
 
   render() {
-    return <GridView adapter={adapter} outterScroll={true} renderCustomView={this.renderCustomView}/>;
+    return <GridView adapter={adapter} renderCustomView={this.renderCustomView}/>;
   }
 
 });

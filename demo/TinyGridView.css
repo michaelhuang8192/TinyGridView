@@ -1,9 +1,0 @@
-body {overflow-y:scroll;}
-.tinygridview {}
-.tinygridview_innerscroll {height:600px;position:relative;overflow-y:scroll}
-
-.tinygridview >.tgv_body {position:relative;}
-.tinygridview >.tgv_body >.tgv_item {position:absolute;width:120px;height:120px;overflow:hidden;}
-
-
-
